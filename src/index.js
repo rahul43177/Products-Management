@@ -2,6 +2,7 @@ const express = require('express')
 const app = express()
 const mongoose = require('mongoose')
 const route = require('./route/route.js')
+const multer = require('multer')
 app.use(express.json())
 app.use(express.urlencoded({extended:true}))
 
@@ -9,6 +10,7 @@ mongoose.connect('mongodb+srv://rahul4317:L0Jf8dKS6E1sKl1C@cluster0.dwi1fgs.mong
 .then(()=>console.log(`MongoDB is connected`))
 .catch(error=>console.log(error))
 
+app.use(multer().any())
 
 app.use('/',route)
 
