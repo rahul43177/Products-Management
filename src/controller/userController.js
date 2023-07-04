@@ -4,6 +4,7 @@ const bcrypt = require('bcrypt')
 const {uploadFiles} = require('../aws/aws')
 const jwt = require('jsonwebtoken')
 const {ObjectIdCheck} = require('../utils/validations')
+const { hashedPassword , comparePassword,} = require('../utils/bcrypt')
 
 const userCreate = async (req,res)=>{
     try {
@@ -32,15 +33,15 @@ const userCreate = async (req,res)=>{
             
             const url = await uploadFiles(file[0])
             
-            const salt = await bcrypt.genSalt()
-            const hashedPassword = await bcrypt.hash(password , salt) 
+            const hasPassword = await hashedPassword(password)
+            
             
             const userDetail = {
                 fname : fname , 
                 lname : lname , 
                 phone : phone ,
                 email : email , 
-                password : hashedPassword ,
+                password : hasPassword ,
                 address : {
                     shipping : {
                         street : address.shipping.street ,
@@ -58,18 +59,81 @@ const userCreate = async (req,res)=>{
             const user = await userModel.create(userDetail)
             return res.status(201).send({status : true , message : "User created succesfully" , data : user})
         }
-
-
-
-
-
-
-
-    } catch(error) {
+} catch(error) {
         res.status(500).send({status : false , message : error.message})
     }
 }
 
 
 
-module.exports = {userCreate}
+
+const userLogin = async (req,res) => {
+    try {
+        const {email , password} = req.body
+
+        if(!email || !password) return res.status(400).send({status : false , message : "Please enter the credentials "})
+
+        if(!validator.isEmail(email)) return res.status(400).send({status : false , message : "Please enter the valid emailId"})
+
+        if(password.length > 15  || password.length < 8) return res.status(400).send({status : false , message : "Please enter a valid password"})
+        
+        const user = await userModel.findOne({email : email})
+        if(!user) return res.status(400).send({status : false , message : "User does not found"})
+
+        const checkPassword = await comparePassword(password , user.password)
+        if(!checkPassword) return res.status(400).send({status : false , message : "Invalid password"})
+
+        const token = jwt.sign({userId : user._id} , "secret-key" , {expiresIn : "24h"})
+        if(!token) return res.status(400).send({status : false , message : "Invalid token"})
+
+        res.setHeaders('x-api-key' , token)
+        return res.status(200).send({
+            status : true  ,
+            message : "User logged in successfully" ,
+            data : {userId : user._id , token : token}
+        })
+    } catch(error) {
+        res.status(500).send({status : false , message : error.message})
+    }
+}
+const getUserById = async (req,res) =>{
+    try {
+        const userId = req.params.userId
+        if(!userId) return res.status(400).send({status : false , message : "Please enter the UserID"})
+        if(!ObjectIdCheck(userId)) return res.status(400).send({status : false , message :"Please enter the valid Id"})
+        const user = await userModel.findById(userId)
+        return res.status(200).send({status : true , message : "Success" , Data : user})
+        
+    } catch(error) {
+        res.status(500).send({status : false , message: error.message })
+    }
+}
+
+const updateUser = async function(req,res) {
+    try {
+        let userId = req.params.userId
+        let data = req.body 
+        if(!data) return res.status(400).send({status : false , message : "Please enter the data to be updated"})
+
+        if(!userId) return res.status(400).send({status : false , message : "Please enter the userId"})
+
+        if(!ObjectIdCheck(userId)) return res.status(400).send({status : false , message : "Please enter a valid UserId"})
+
+        const user = await userModel.findById(userId)
+        
+
+
+
+
+
+    } catch(error) {
+        res.status(500).send({Status : false , error : error.message})
+    }
+}
+
+
+
+
+
+
+module.exports = {userCreate,userLogin , getUserById}
