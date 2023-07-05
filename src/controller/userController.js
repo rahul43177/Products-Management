@@ -120,9 +120,29 @@ const updateUser = async function(req,res) {
         if(!ObjectIdCheck(userId)) return res.status(400).send({status : false , message : "Please enter a valid UserId"})
 
         const user = await userModel.findById(userId)
-        
+        if(!user) return res.status(400).send({status : false , message : "User not found"})
+        if(data.email) {
+            const emailFind = await userModel.findOne({email : data.email})
+            if(emailFind) return res.status(400).send({status : false , message : "User already exist"})
+            if(!validator.isEmail(email)) return res.status(400).send({status : false , message : "Email is not valid"})   
+        }
+        if(data.phone) {
+            const phoneCheck = await userModel.findOne({phone : data.phone})
+            if(phoneCheck) return res.status(400).send({status : flase , message : "Phone number already exists"})
+            if(data.phone!== 10) return res.status(400).send({status : false , message : "Please enter a valid phone number"})
+        }
+        if(data.password) {
+            if(data.password < 8 || data.password > 15) return res.status(400).send({status : false , message : "Please enter a valid password"})
+        }
+        const hasPassword = await hashedPassword(data.password)
+        data.password = hasPassword
 
-
+        const updateUser2 = await userModel.findByIdAndUpdate(
+            userId , 
+            {$set : req.body} ,
+            {new : true}
+        )
+        return res.status(200).send({status : true , message : "User updated successfully" , data : updateUser2})
 
 
 
@@ -136,4 +156,4 @@ const updateUser = async function(req,res) {
 
 
 
-module.exports = {userCreate,userLogin , getUserById}
+module.exports = {userCreate,userLogin , getUserById, updateUser}
